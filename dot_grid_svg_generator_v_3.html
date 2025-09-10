@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dot Grid SVG Generator — v3.1</title>
+  <style>
+    :root{--bg:#0b0c0f;--panel:#12141a;--panel2:#191c23;--text:#eef2f7;--muted:#b8c1cc;--accent:#7aa2ff;--border:#222631}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px;min-height:100vh}
+    .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+    h1{font-size:18px;margin:0 0 8px}
+    h2{font-size:13px;margin:16px 0 8px;color:var(--muted);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+    .grid{display:grid;grid-template-columns:1fr 140px;gap:8px 10px;align-items:center}
+    label{color:var(--muted)}
+    input[type=number],input[type=text],select{width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:#0e1117;color:var(--text);outline:none}
+    input[type=range]{width:100%}
+    .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+    button{padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#1a1f2b;color:var(--text);cursor:pointer;transition:transform .04s ease,filter .2s ease}
+    button:hover{filter:brightness(1.05)}
+    .primary{background:linear-gradient(180deg,#2a5bff,#2149d8);border:0}
+    .preview{display:grid;grid-template-rows:auto 1fr auto;gap:10px;height:calc(100vh - 32px)}
+    .preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .preview-area{background:#fff;border-radius:14px;overflow:auto;border:1px solid var(--border);display:grid;place-items:center}
+    .codebox{white-space:pre;overflow:auto;background:#0e1117;color:#dbe5f5;padding:10px;border-radius:10px;border:1px solid var(--border);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:120px}
+    .hint{color:var(--muted);font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside class="panel">
+      <h1>Dot Grid SVG Generator</h1>
+      <p class="hint">Adjust parameters, preview live, then download the SVG. Set <em>Background</em> to <code>none</code> for transparency.</p>
+
+      <h2>Canvas</h2>
+      <div class="grid">
+        <label for="width">Width</label>
+        <input id="width" type="number" value="800" min="64" step="1">
+        <label for="height">Height</label>
+        <input id="height" type="number" value="800" min="64" step="1">
+        <label for="bg">Background</label>
+        <input id="bg" type="text" value="#ffffff" placeholder="#ffffff or none">
+        <label for="dotColor">Dot color</label>
+        <input id="dotColor" type="text" value="#111111" placeholder="#111111">
+      </div>
+
+      <h2>Grid</h2>
+      <div class="grid">
+        <label for="cols">Columns</label>
+        <input id="cols" type="number" value="28" min="2" step="1">
+        <label for="rows">Rows</label>
+        <input id="rows" type="number" value="28" min="2" step="1">
+        <label for="margin">Margin</label>
+        <input id="margin" type="number" value="36" min="0" step="1">
+        <label for="equalSpacing">Equal spacing (dx = dy)</label>
+        <input id="equalSpacing" type="checkbox">
+        <label for="equalFit">Fit mode</label>
+        <select id="equalFit">
+          <option value="min" selected>Fit inside (use smaller step)</option>
+          <option value="max">Fill axis (use larger step)</option>
+        </select>
+      </div>
+
+      <h2>Size Gradient</h2>
+      <div class="grid">
+        <label for="sminVal">Min size</label>
+        <input id="sminVal" type="number" min="0.05" max="5" step="0.05" value="0.45">
+        <label for="smaxVal">Max size</label>
+        <input id="smaxVal" type="number" min="0.05" max="6" step="0.05" value="1.35">
+        <label for="gammaVal">Falloff (gamma)</label>
+        <input id="gammaVal" type="number" min="0.2" max="4" step="0.05" value="1.2">
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="radial" selected>Radial (center biggest)</option>
+          <option value="linear-x">Linear X (left→right)</option>
+          <option value="linear-y">Linear Y (top→bottom)</option>
+          <option value="radial-offset">Radial (custom center)</option>
+          <option value="multi-radial">Multiple radials</option>
+        </select>
+      </div>
+
+      <div class="grid" id="radial-params" style="display:none;grid-template-columns:1fr 1fr;">
+        <label for="radialX">Center X</label>
+        <input id="radialX" type="number" value="400" min="0" step="1">
+        <label for="radialY">Center Y</label>
+        <input id="radialY" type="number" value="400" min="0" step="1">
+      </div>
+
+      <div class="grid" id="multi-radials" style="display:none;grid-template-columns:1fr 1fr;">
+        <label>Centers (x,y[,r])</label>
+        <input id="multiCenters" type="text" value="200,200,220;600,600,220" placeholder="e.g. 150,300,200; 650,400,260"/>
+      </div>
+      <div class="grid" id="multi-options" style="display:none;grid-template-columns:1fr 1fr;align-items:center;">
+        <label>Combine</label>
+        <select id="combine">
+          <option value="min" selected>Min (closest)</option>
+          <option value="max">Max (farthest)</option>
+          <option value="average">Average</option>
+          <option value="add">Add (clamped)</option>
+          <option value="multiply">Multiply</option>
+        </select>
+        <label>Invert (centers small)</label>
+        <input id="invert" type="checkbox" />
+      </div>
+
+      <h2>Appearance Mapping</h2>
+      <div class="grid">
+        <label>Opacity mapping</label>
+        <select id="opacityLink">
+          <option value="size" selected>By size</option>
+          <option value="off">Off</option>
+        </select>
+        <label for="opMin">Opacity min</label>
+        <input id="opMin" type="number" min="0" max="1" step="0.01" value="0.20">
+        <label for="opMax">Opacity max</label>
+        <input id="opMax" type="number" min="0" max="1" step="0.01" value="1.00">
+        <label for="opGamma">Opacity curve</label>
+        <input id="opGamma" type="number" min="0.1" max="5" step="0.05" value="1.00">
+        <label>Opacity invert</label>
+        <input id="opInvert" type="checkbox">
+        <label>Color gradient</label>
+        <select id="colorMap">
+          <option value="none" selected>None (use Dot color)</option>
+          <option value="size">Gradient by size</option>
+        </select>
+        <label for="colorA">Color A</label>
+        <input id="colorA" type="text" value="#111111" placeholder="#hex or rgb()">
+        <label for="colorB">Color B</label>
+        <input id="colorB" type="text" value="#888888" placeholder="#hex or rgb()">
+      </div>
+
+      <div class="btns">
+        <button class="primary" id="download">Download SVG</button>
+        <button id="copy">Copy SVG</button>
+        <button id="exportSettings">Export Settings</button>
+        <button id="importSettings">Import Settings</button>
+        <button id="shareUrl">Share Link</button>
+        <input id="settingsFile" type="file" accept="application/json" style="display:none" />
+        <button id="reset">Reset</button>
+      </div>
+    </aside>
+
+    <main class="preview">
+      <div class="preview-head panel">
+        <div>
+          <strong>Live Preview</strong>
+          <span class="hint">(inline SVG — Chrome compatible)</span>
+        </div>
+        <div class="hint" id="meta"></div>
+      </div>
+      <div class="preview-area" id="stage"></div>
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <strong>SVG Code</strong>
+          <button id="minify">Minify</button>
+        </div>
+        <pre class="codebox" id="code"></pre>
+      </div>
+    </main>
+  </div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const controls = {
+    width: $("width"), height: $("height"), bg: $("bg"), dotColor: $("dotColor"),
+    cols: $("cols"), rows: $("rows"), margin: $("margin"), equalSpacing: $("equalSpacing"), equalFit: $("equalFit"),
+    sminVal: $("sminVal"), smaxVal: $("smaxVal"), gammaVal: $("gammaVal"), mode: $("mode"),
+    radialX: $("radialX"), radialY: $("radialY"), multiCenters: $("multiCenters"), combine: $("combine"), invert: $("invert"),
+    opacityLink: $("opacityLink"), opMin: $("opMin"), opMax: $("opMax"), opGamma: $("opGamma"), opInvert: $("opInvert"),
+    colorMap: $("colorMap"), colorA: $("colorA"), colorB: $("colorB")
+  };
+  const stage = $("stage");
+  const codeBox = $("code");
+  const meta = $("meta");
+
+  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+  function num(el){ return parseFloat(el.value); }
+  function int(el){ return parseInt(el.value, 10); }
+
+  function parseColor(str){
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.fillStyle = str; const m = ctx.fillStyle.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    return m?{r:+m[1],g:+m[2],b:+m[3]}:{r:17,g:17,b:17};
+  }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function rgbToHex({r,g,b}){ const h=x=>('0'+x.toString(16)).slice(-2); return `#${h(r)}${h(g)}${h(b)}`; }
+
+  function genSVG(){
+    const width = clamp(int(controls.width)||800, 32, 20000);
+    const height = clamp(int(controls.height)||800, 32, 20000);
+    const cols = clamp(int(controls.cols)||28, 2, 1000);
+    const rows = clamp(int(controls.rows)||28, 2, 1000);
+    const margin = clamp(num(controls.margin)||0, 0, Math.min(width,height)/2);
+    const smin = clamp(num(controls.sminVal)||0.1, 0.01, 100);
+    const smax = clamp(num(controls.smaxVal)||1, 0.01, 200);
+    const gamma = clamp(num(controls.gammaVal)||1, 0.01, 20);
+    const dotColor = controls.dotColor.value || '#111111';
+    const bg = (controls.bg.value || 'none').trim();
+    const mode = controls.mode.value;
+
+    const opacityLink = controls.opacityLink.value; const opMin = clamp(parseFloat(controls.opMin.value)||0,0,1); const opMax = clamp(parseFloat(controls.opMax.value)||1,0,1); const opGamma = clamp(parseFloat(controls.opGamma.value)||1,0.01,10); const opInvert = !!controls.opInvert.checked; const colorMap = controls.colorMap.value; const colorA = controls.colorA.value || '#111111'; const colorB = controls.colorB.value || '#888888';
+
+    const cx = width/2, cy = height/2; const maxDist = Math.hypot(cx, cy);
+    const innerW = width - 2 * margin; const innerH = height - 2 * margin;
+    let dx = innerW / (cols - 1); let dy = innerH / (rows - 1);
+    let startX = margin; let startY = margin;
+
+    if (controls.equalSpacing.checked) {
+      const step = (controls.equalFit.value === 'max') ? Math.max(dx, dy) : Math.min(dx, dy);
+      dx = step; dy = step;
+      // Center the grid; may exceed margins for 'max' fit
+      startX = (width  - step * (cols - 1)) / 2;
+      startY = (height - step * (rows - 1)) / 2;
+    }
+
+    const cx2 = isFinite(parseFloat(controls.radialX?.value)) ? parseFloat(controls.radialX.value) : cx;
+    const cy2 = isFinite(parseFloat(controls.radialY?.value)) ? parseFloat(controls.radialY.value) : cy;
+
+    function scaleAt(x,y){
+      let t;
+      if(mode === 'radial'){
+        t = Math.hypot(x - cx, y - cy) / maxDist;
+      } else if(mode === 'linear-x'){
+        const spanX = Math.max(1, (cols - 1) * dx);
+        t = (x - startX) / spanX;
+      } else if(mode === 'linear-y'){
+        const spanY = Math.max(1, (rows - 1) * dy);
+        t = (y - startY) / spanY;
+      } else if(mode === 'radial-offset'){
+        t = Math.hypot(x - cx2, y - cy2) / maxDist;
+      } else if(mode === 'multi-radial'){
+        const multi = (controls.multiCenters?.value||'').split(';').map(s=>s.trim()).filter(Boolean).map(s=>s.split(',').map(Number)).map(([mx,my,rr])=>({x:mx,y:my,r:rr})).filter(o=>isFinite(o.x)&&isFinite(o.y));
+        let ts = multi.map(({x:mx,y:my,r})=>{
+          const base = Math.hypot(x-mx,y-my);
+          const denom = isFinite(r) && r>0 ? r : maxDist;
+          return Math.min(1, Math.max(0, base/denom));
+        });
+        if(ts.length===0) t = 0; else {
+          const c = controls.combine?.value||'min';
+          if(c==='min') t = Math.min(...ts);
+          else if(c==='max') t = Math.max(...ts);
+          else if(c==='average') t = ts.reduce((a,b)=>a+b,0)/ts.length;
+          else if(c==='add') t = Math.min(1, ts.reduce((a,b)=>a+b,0));
+          else if(c==='multiply') t = ts.reduce((a,b)=>a*b,1);
+          else t = Math.min(...ts);
+        }
+      } else { t = 0; }
+      t = clamp(t, 0, 1);
+      const tt = (controls.invert && controls.invert.checked) ? t : (1 - t);
+      return smin + (smax - smin) * Math.pow(tt, gamma);
+    }
+
+    const parts = [];
+    parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="geometricPrecision">`);
+    parts.push(`  <title>Dot Grid</title>`);
+    parts.push(`  <desc>Generated ${new Date().toISOString()} — dots vary in size via ${mode} gradient.</desc>`);
+    parts.push(`  <defs>`);
+    parts.push(`    <symbol id="dot" overflow="visible"><circle cx="0" cy="0" r="1" /></symbol>`);
+    parts.push(`  </defs>`);
+
+    if(bg.toLowerCase() !== 'none'){
+      parts.push(`  <rect x="0" y="0" width="${width}" height="${height}" fill="${bg}" />`);
+    }
+
+    const A = parseColor(colorA), B = parseColor(colorB);
+
+    for(let r=0; r<rows; r++){
+      const y = startY + r * dy;
+      for(let c=0; c<cols; c++){
+        const x = startX + c * dx;
+        const s = scaleAt(x,y);
+        const sizeNormRaw = (s - smin) / Math.max(1e-9,(smax - smin));
+        const sizeNorm = clamp(opInvert ? (1 - sizeNormRaw) : sizeNormRaw, 0, 1);
+        const a = (opacityLink==='size' ? (opMin + (opMax - opMin) * Math.pow(sizeNorm, opGamma)) : opMax);
+        let fill = dotColor;
+        if(colorMap==='size'){
+          const R = { r: Math.round(lerp(A.r,B.r,sizeNorm)), g: Math.round(lerp(A.g,B.g,sizeNorm)), b: Math.round(lerp(A.b,B.b,sizeNorm)) };
+          fill = rgbToHex(R);
+        }
+        parts.push(`  <use href="#dot" transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(${s.toFixed(4)})" fill="${fill}" fill-opacity="${a.toFixed(3)}" />`);
+      }
+    }
+
+    parts.push('</svg>');
+    const svg = parts.join('\n');
+    return { svg, width, height, cols, rows };
+  }
+
+  function render(){
+    const { svg, width, height, cols, rows } = genSVG();
+    stage.innerHTML = svg;
+    codeBox.textContent = svg;
+    meta.textContent = `${width}×${height}px • ${cols}×${rows} dots`;
+  }
+
+  function downloadSVG(){
+    const { svg, width, height, cols, rows } = genSVG();
+    const blob = new Blob([svg], {type: 'image/svg+xml'});
+    const a = document.createElement('a');
+    const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    const fname = `dot-grid_${width}x${height}_${cols}x${rows}_${ts}.svg`;
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+  }
+
+  async function copySVG(){
+    try{ const { svg } = genSVG(); await navigator.clipboard.writeText(svg); toast('SVG copied'); }
+    catch(e){ toast('Copy failed — select code and copy'); }
+  }
+
+  function toast(text){
+    const b=document.createElement('div'); b.textContent=text;
+    b.style.position='fixed'; b.style.bottom='16px'; b.style.right='16px';
+    b.style.background='#1a1f2b'; b.style.border='1px solid var(--border)';
+    b.style.padding='8px 10px'; b.style.borderRadius='8px';
+    b.style.color='#eef2f7'; b.style.zIndex=9999; document.body.appendChild(b);
+    setTimeout(()=>b.remove(),1400);
+  }
+
+  function collectSettings(){
+    const ids = ['width','height','bg','dotColor','cols','rows','margin','equalSpacing','equalFit','sminVal','smaxVal','gammaVal','mode','radialX','radialY','multiCenters','combine','invert','opacityLink','opMin','opMax','opGamma','opInvert','colorMap','colorA','colorB'];
+    const data = {}; ids.forEach(id=>{ const el=$(id); if(!el) return; data[id] = (el.type==='checkbox')? !!el.checked : el.value; }); return data;
+  }
+  function applySettings(data){ Object.entries(data||{}).forEach(([k,v])=>{ const el=$(k); if(!el) return; if(el.type==='checkbox') el.checked=!!v; else el.value=v; }); updatePanels(); render(); }
+  function exportSettings(){ const json = JSON.stringify({v:2, settings:collectSettings()}, null, 2); const blob=new Blob([json],{type:'application/json'}); const a=document.createElement('a'); const ts=new Date().toISOString().slice(0,19).replace(/[:T]/g,'-'); a.href=URL.createObjectURL(blob); a.download=`dot-grid-settings_${ts}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1500); }
+  function importSettingsFromFile(file){ const reader=new FileReader(); reader.onload=()=>{ try{ const data=JSON.parse(reader.result); applySettings(data.settings||data); toast('Settings loaded'); }catch(e){ toast('Invalid settings file'); } }; reader.readAsText(file); }
+  function shareUrl(){ const json=JSON.stringify(collectSettings()); const b64=btoa(unescape(encodeURIComponent(json))); const url=location.origin+location.pathname+"#s="+b64; navigator.clipboard.writeText(url).then(()=>toast('Share link copied')); }
+  function tryLoadFromHash(){ const m=location.hash.match(/#s=([^&]+)/); if(!m) return; try{ const json=decodeURIComponent(escape(atob(m[1]))); const data=JSON.parse(json); applySettings(data); }catch(e){ /* ignore */ } }
+
+  function updatePanels(){ const mode=controls.mode.value; $("radial-params").style.display=(mode==='radial-offset')?'grid':'none'; const multi=(mode==='multi-radial'); $("multi-radials").style.display= multi? 'grid':'none'; $("multi-options").style.display= multi? 'grid':'none'; }
+
+  document.querySelectorAll('input,select').forEach(el=>{ el.addEventListener('input', render); el.addEventListener('change', ()=>{ if(el.id==='mode') updatePanels(); render(); }); });
+  $("download").addEventListener('click', downloadSVG);
+  $("copy").addEventListener('click', copySVG);
+  $("exportSettings").addEventListener('click', exportSettings);
+  $("importSettings").addEventListener('click', ()=> $("settingsFile").click());
+  $("shareUrl").addEventListener('click', shareUrl);
+  $("settingsFile").addEventListener('change', (e)=>{ const f=e.target.files[0]; if(f) importSettingsFromFile(f); e.target.value=''; });
+  $("minify").addEventListener('click', ()=>{ const { svg } = genSVG(); const min = svg.replace(/\n+/g,'').replace(/\s{2,}/g,' '); const isMin = codeBox.textContent.length > svg.length/2 && codeBox.textContent.length < svg.length; codeBox.textContent = isMin ? svg : min; });
+  $("reset").addEventListener('click', ()=>{ location.hash=''; location.reload(); });
+
+  tryLoadFromHash();
+  updatePanels();
+  render();
+})();
+</script>
+</body>
+</html>
